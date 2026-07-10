@@ -1,0 +1,24 @@
+directories:
+  output: dist
+  buildResources: build
+appId: com.madhava.clinic
+productName: Madhava Clinic
+files:
+  - filter:
+      - main.js
+      - server.js
+      - app/**/*
+      - node_modules/**/*
+win:
+  target:
+    - target: nsis
+      arch:
+        - x64
+  icon: app/logo.png
+nsis:
+  oneClick: false
+  allowToChangeInstallationDirectory: true
+  createDesktopShortcut: true
+  createStartMenuShortcut: true
+  shortcutName: Madhava Clinic
+electronVersion: 28.3.3

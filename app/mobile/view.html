@@ -1,0 +1,147 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0" />
+<title>Madhava Clinic — Patient Record</title>
+<style>
+  :root{
+    --ink:#1a1a18; --ink-2:#3d3d38; --muted:#7a7a6e; --line:#e2dfd6;
+    --paper:#f7f5ef; --panel:#fdfcf8; --gold:#b8976a; --gold-pale:#ede4d3;
+    --green:#2d6648; --coral:#c0533c; --radius:12px;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0; min-height:100vh; background:var(--paper); color:var(--ink);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif;
+    padding:20px 16px 40px;
+  }
+  .brand{display:flex;align-items:center;gap:10px;margin-bottom:18px;}
+  .brand img{width:40px;height:40px;border-radius:8px;object-fit:cover;}
+  .brand h1{font-size:17px;margin:0;color:var(--ink);}
+  .brand p{margin:0;font-size:12px;color:var(--muted);}
+  .live-dot{display:inline-flex;align-items:center;gap:5px;font-size:11px;color:var(--green);font-weight:600;margin-left:auto;}
+  .live-dot::before{content:"";width:7px;height:7px;border-radius:50%;background:var(--green);animation:pulse 1.4s infinite;}
+  @keyframes pulse{0%,100%{opacity:1;}50%{opacity:0.3;}}
+
+  .card{
+    background:var(--panel); border:1px solid var(--line); border-radius:var(--radius);
+    padding:18px; margin-bottom:14px; box-shadow:0 1px 4px rgba(26,26,24,0.06);
+  }
+  .patient-name{font-size:20px;font-weight:700;margin:0 0 2px;}
+  .patient-sub{font-size:13px;color:var(--muted);margin:0;}
+
+  .pill-row{display:flex;flex-wrap:wrap;gap:6px;margin-top:12px;}
+  .pill{display:inline-flex;align-items:center;padding:4px 10px;border-radius:999px;background:var(--gold-pale);color:var(--gold);font-size:11px;font-weight:600;}
+  .pill.due{background:rgba(192,83,60,0.1);color:var(--coral);}
+
+  h3.section{font-size:12px;letter-spacing:0.06em;text-transform:uppercase;color:var(--muted);margin:0 0 10px;}
+  .field{margin-bottom:10px;}
+  .field label{display:block;font-size:10px;letter-spacing:0.05em;text-transform:uppercase;color:var(--muted);margin-bottom:2px;}
+  .field div{font-size:14px;line-height:1.5;}
+
+  .visit{border-left:2px solid var(--line);padding:2px 0 12px 14px;margin-left:2px;position:relative;}
+  .visit::before{content:"";position:absolute;left:-5px;top:4px;width:8px;height:8px;border-radius:50%;background:var(--gold);}
+  .visit-date{font-size:12px;font-weight:700;color:var(--ink);}
+  .visit p{margin:3px 0 0;font-size:13px;color:var(--ink-2);line-height:1.5;}
+
+  .gallery{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;}
+  .gallery img{width:100%;aspect-ratio:1;object-fit:cover;border-radius:8px;border:1px solid var(--line);}
+  .empty{font-size:12px;color:var(--muted);font-style:italic;padding:6px 0;}
+</style>
+</head>
+<body>
+  <div class="brand">
+    <img src="../logo.png" alt="Madhava Clinic" onerror="this.style.display='none'" />
+    <div>
+      <h1>Madhava Clinic</h1>
+      <p>Patient record mirror</p>
+    </div>
+    <span class="live-dot" id="liveDot" style="display:none;">Live</span>
+  </div>
+
+  <div class="card" id="patientCard">
+    <p class="patient-sub">Loading patient…</p>
+  </div>
+
+  <div class="card" id="detailCard" style="display:none;">
+    <h3 class="section">Clinical details</h3>
+    <div class="field"><label>Diagnosis</label><div id="fDiagnosis">—</div></div>
+    <div class="field"><label>Symptoms</label><div id="fSymptoms">—</div></div>
+    <div class="field"><label>Allergies</label><div id="fAllergies">—</div></div>
+    <div class="field"><label>Current medicines</label><div id="fMedicines">—</div></div>
+    <div class="field"><label>Notes</label><div id="fNotes">—</div></div>
+  </div>
+
+  <div class="card" id="visitsCard" style="display:none;">
+    <h3 class="section">Visit history</h3>
+    <div id="visitsList"></div>
+  </div>
+
+  <div class="card" id="photosCard" style="display:none;">
+    <h3 class="section">Photos</h3>
+    <div class="gallery" id="gallery"></div>
+  </div>
+
+<script>
+  const params = new URLSearchParams(location.search);
+  const patientId = params.get('patientId');
+  const API = `${location.protocol}//${location.host}/api`;
+  let pollTimer = null;
+
+  async function load(){
+    if(!patientId){
+      document.querySelector('#patientCard').innerHTML = `<p class="patient-name">Invalid QR code</p><p class="patient-sub">No patient was linked to this code.</p>`;
+      return;
+    }
+    try{
+      const [patient, photos] = await Promise.all([
+        fetch(`${API}/patients/${encodeURIComponent(patientId)}/full`).then(r=>{ if(!r.ok) throw new Error('not found'); return r.json(); }),
+        fetch(`${API}/photos?patientId=${encodeURIComponent(patientId)}`).then(r=>r.json()).catch(()=>[])
+      ]);
+      renderPatient(patient);
+      renderPhotos(photos);
+      document.querySelector('#liveDot').style.display = 'inline-flex';
+      if(!pollTimer) pollTimer = setInterval(load, 5000);
+    }catch(e){
+      document.querySelector('#patientCard').innerHTML = `<p class="patient-name">Patient not found</p><p class="patient-sub">This QR code may be old or invalid.</p>`;
+    }
+  }
+
+  function renderPatient(p){
+    document.querySelector('#patientCard').innerHTML = `
+      <p class="patient-name">${escapeHtml(p.name || 'Patient')}</p>
+      <p class="patient-sub">ID: ${escapeHtml(p.patientCode || '—')} · ${escapeHtml(p.phone || '')}${p.age ? ' · ' + escapeHtml(String(p.age)) + ' yrs' : ''}${p.gender ? ' · ' + escapeHtml(p.gender) : ''}</p>
+      <div class="pill-row">${p.diagnosis ? `<span class="pill">${escapeHtml(p.diagnosis)}</span>` : ''}${p.allergies ? `<span class="pill due">Allergy: ${escapeHtml(p.allergies)}</span>` : ''}</div>
+    `;
+    document.querySelector('#detailCard').style.display = 'block';
+    document.querySelector('#fDiagnosis').textContent = p.diagnosis || '—';
+    document.querySelector('#fSymptoms').textContent = p.symptoms || '—';
+    document.querySelector('#fAllergies').textContent = p.allergies || '—';
+    document.querySelector('#fMedicines').textContent = p.currentMedicines || '—';
+    document.querySelector('#fNotes').textContent = p.notes || '—';
+
+    const visits = [...(p.visits||[])].sort((a,b)=>String(b.date).localeCompare(String(a.date)));
+    document.querySelector('#visitsCard').style.display = visits.length ? 'block' : 'none';
+    document.querySelector('#visitsList').innerHTML = visits.map(v => `
+      <div class="visit">
+        <div class="visit-date">${formatDate(v.date)}</div>
+        <p>${escapeHtml([v.diagnosis, v.vitals, v.symptoms, v.notes].filter(Boolean).join(' · ') || 'Visit saved.')}</p>
+      </div>`).join('');
+  }
+
+  function renderPhotos(photos){
+    document.querySelector('#photosCard').style.display = 'block';
+    const gallery = document.querySelector('#gallery');
+    gallery.innerHTML = photos.length
+      ? photos.map(p => `<img src="/photos/${encodeURIComponent(p.patientId)}/${encodeURIComponent(p.filename)}" />`).join('')
+      : `<div class="empty">No photos uploaded yet.</div>`;
+  }
+
+  function formatDate(d){ if(!d) return '--'; try{ return new Intl.DateTimeFormat('en-IN',{day:'2-digit',month:'short',year:'numeric'}).format(new Date(d)); }catch(e){ return d; } }
+  function escapeHtml(v){ return String(v||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+  load();
+</script>
+</body>
+</html>

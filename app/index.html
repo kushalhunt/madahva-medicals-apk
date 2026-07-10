@@ -1,0 +1,348 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Madhava Clinic</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <!-- PIN lock overlay -->
+    <div class="auth-overlay" id="authOverlay">
+      <div class="auth-card">
+        <img src="logo.png" alt="Madhava Clinic" class="auth-logo" />
+        <h2 id="authTitle">Enter PIN</h2>
+        <p id="authSubtitle">Enter your clinic PIN to continue.</p>
+        <div class="pin-dots" id="pinDots">
+          <span></span><span></span><span></span><span></span>
+        </div>
+        <p class="auth-error" id="authError"></p>
+        <div class="keypad" id="keypad">
+          <button data-key="1">1</button><button data-key="2">2</button><button data-key="3">3</button>
+          <button data-key="4">4</button><button data-key="5">5</button><button data-key="6">6</button>
+          <button data-key="7">7</button><button data-key="8">8</button><button data-key="9">9</button>
+          <button class="ghost" data-key="clear">Clear</button><button data-key="0">0</button><button class="ghost" data-key="back">⌫</button>
+        </div>
+        <button class="link-btn" id="changePinLink" style="display:none;">Change PIN</button>
+      </div>
+    </div>
+
+    <div class="shell" id="appShell">
+      <aside class="sidebar" aria-label="Main navigation">
+        <div class="brand">
+          <img src="logo.png" alt="Madhava Medicals" class="brand-logo" />
+          <div>
+            <h1>Madhava Clinic</h1>
+            <p>Clinic records</p>
+          </div>
+        </div>
+        <div class="welcome-card"><span class="welcome-label">Welcome back</span><strong class="welcome-name">Dr. Jaghannathan</strong></div>
+        <nav class="nav">
+          <button class="nav-btn active" data-view="dashboard">Dashboard</button>
+          <button class="nav-btn" data-view="patients">Patients</button>
+          <button class="nav-btn" data-view="billing">Billing</button>
+          <button class="nav-btn" data-view="schedule">Schedule <span class="nav-badge" id="bookingBadge" style="display:none;">0</span></button>
+          <button class="nav-btn" data-view="assistant">AI Assistant</button>
+        </nav>
+        <div class="storage-card">
+          <span>Device storage</span>
+          <strong id="storageCount">0 records</strong>
+          <small id="backupStatus">No backup yet</small>
+        </div>
+      </aside>
+
+      <main class="content">
+        <header class="topbar">
+          <div>
+            <p class="eyebrow">Patient management</p>
+            <h2 id="viewTitle">Dashboard</h2>
+          </div>
+          <div class="top-actions">
+            <button class="icon-btn" id="lockBtn" title="Lock app">Lock</button>
+            <button class="icon-btn" id="exportBtn" title="Backup data">Backup</button>
+            <button class="icon-btn" id="excelBtn" title="Export Excel">Excel</button>
+            <label class="icon-btn import-label" title="Import data">
+              Import
+              <input id="importInput" type="file" accept="application/json" />
+            </label>
+          </div>
+        </header>
+
+        <!-- Dashboard -->
+        <section class="view active" id="dashboard">
+          <div class="stats-grid" style="grid-template-columns:repeat(2,minmax(0,1fr));max-width:440px;">
+            <article class="stat">
+              <span>Total patients</span>
+              <strong id="statPatients">0</strong>
+            </article>
+            <article class="stat">
+              <span>Today</span>
+              <strong id="todayLabel">--</strong>
+            </article>
+          </div>
+          <div style="display:none"><strong id="statDue"></strong><strong id="statOutstanding"></strong><div id="upcomingList"></div></div>
+
+          <div style="max-width:520px;">
+            <section class="panel">
+              <div class="panel-head">
+                <h3>Recent Patients</h3>
+                <button class="small-btn secondary" data-jump="patients">Add</button>
+              </div>
+              <div class="list" id="recentList"></div>
+            </section>
+          </div>
+        </section>
+
+        <!-- Patients -->
+        <section class="view" id="patients">
+          <div class="two-column">
+            <form class="panel form-panel" id="patientForm">
+              <h3>Add Patient</h3>
+              <div class="form-grid">
+                <label>Name<input required id="patientName" autocomplete="name" /></label>
+                <label>Age<input id="patientAge" type="number" min="0" max="130" /></label>
+                <label>Phone<input required id="patientPhone" inputmode="tel" placeholder="919876543210" /></label>
+                <label>Gender
+                  <select id="patientGender">
+                    <option>Female</option>
+                    <option>Male</option>
+                    <option>Other</option>
+                  </select>
+                </label>
+                <label class="full">Address<input id="patientAddress" /></label>
+                <label>Visit date<input id="patientVisitDate" type="date" /></label>
+                <label>Vitals<input id="patientVitals" placeholder="BP, pulse, weight" /></label>
+                <label class="full">Allergies<input id="patientAllergies" placeholder="Known allergies" /></label>
+                <label class="full">Current medicines<input id="patientMedicines" placeholder="Ongoing medicines" /></label>
+                <label class="full">Diagnosis<input id="patientDiagnosis" placeholder="Diagnosis / condition" /></label>
+                <label class="full">Symptoms<textarea id="patientSymptoms" rows="3"></textarea></label>
+                <label class="full">Prescription / Notes<textarea id="patientNotes" rows="4"></textarea></label>
+              </div>
+              <div class="toolbar">
+                <button type="button" class="secondary" id="recordBtn">Start voice note</button>
+                <button type="button" class="secondary" id="aiPatientBtn">AI summary</button>
+                <button type="submit">Save patient</button>
+              </div>
+            </form>
+
+            <section class="panel">
+              <div class="panel-head">
+                <h3>Patient Records</h3>
+                <input class="search" id="patientSearch" placeholder="Search name or ID" />
+              </div>
+              <div class="list records" id="patientList"></div>
+            </section>
+          </div>
+        </section>
+
+        <!-- Billing -->
+        <section class="view" id="billing">
+          <div class="two-column">
+            <form class="panel form-panel" id="billForm">
+              <h3>Create Bill</h3>
+              <div class="form-grid">
+                <label class="full">Patient<select required id="billPatient"></select></label>
+                <label>Consultation<input id="billConsultation" type="number" min="0" value="500" /></label>
+                <label>Medicines<input id="billMedicines" type="number" min="0" value="0" /></label>
+                <label>Tests<input id="billTests" type="number" min="0" value="0" /></label>
+                <label>Discount<input id="billDiscount" type="number" min="0" value="0" /></label>
+                <label>Paid<input id="billPaid" type="number" min="0" value="0" /></label>
+                <label>Payment mode
+                  <select id="billPaymentMode">
+                    <option>QR</option>
+                    <option>Cash</option>
+                  </select>
+                </label>
+                <label class="full">Notes<textarea id="billNotes" rows="3"></textarea></label>
+              </div>
+              <div class="qr-preview" id="qrPreview">
+                <img src="qr.jpeg" alt="PhonePe QR code for payment" />
+              </div>
+              <div class="bill-total">
+                <span>Total due</span>
+                <strong id="billPreview">Rs 500</strong>
+              </div>
+              <div class="toolbar">
+                <button type="button" class="secondary" id="aiBillBtn">AI bill note</button>
+                <button type="submit">Save bill</button>
+              </div>
+            </form>
+
+            <section class="panel">
+              <div class="panel-head">
+                <h3>Invoices</h3>
+                <button class="small-btn secondary" id="printBillBtn">Print latest</button>
+              </div>
+              <div class="list records" id="billList"></div>
+            </section>
+          </div>
+        </section>
+
+        <!-- Schedule -->
+        <section class="view" id="schedule">
+          <section class="panel" id="bookingRequestsPanel" style="margin-bottom:20px;">
+            <div class="panel-head">
+              <h3>Website Booking Requests <span class="pill" id="bookingCountPill">0</span></h3>
+              <span style="font-size:11px;color:var(--muted);">Synced from your website every minute</span>
+            </div>
+            <div class="list records" id="bookingRequestList"></div>
+          </section>
+
+          <div class="two-column">
+            <form class="panel form-panel" id="appointmentForm">
+              <h3>Schedule Follow-up</h3>
+              <div class="form-grid">
+                <label class="full">Patient<select required id="appointmentPatient"></select></label>
+                <label>From date<input required id="appointmentBase" type="date" /></label>
+                <label>After days
+                  <select id="appointmentDays">
+                    <option value="10">10 days</option>
+                    <option value="20">20 days</option>
+                    <option value="30">30 days</option>
+                  </select>
+                </label>
+                <label class="full">Reason<input id="appointmentReason" placeholder="Follow-up consultation" /></label>
+              </div>
+              <button type="submit">Create appointment</button>
+            </form>
+
+            <section class="panel">
+              <div class="panel-head">
+                <h3>Reminders</h3>
+                <button class="small-btn secondary" id="notifyBtn">Enable alerts</button>
+              </div>
+              <div class="list records" id="appointmentList"></div>
+            </section>
+          </div>
+        </section>
+
+        <!-- AI Assistant -->
+        <section class="view" id="assistant">
+          <div class="assistant-layout">
+            <section class="panel">
+              <div class="panel-head">
+                <h3>AI Clinic Assistant</h3>
+              </div>
+              <textarea id="assistantInput" rows="10" placeholder="Paste symptoms, prescription, bill details, or follow-up notes…"></textarea>
+              <div class="toolbar">
+                <button id="summarizeBtn">Summarize</button>
+                <button class="secondary" id="followupBtn">Follow-up plan</button>
+                <button class="secondary" id="whatsappDraftBtn">WhatsApp draft</button>
+              </div>
+            </section>
+            <section class="panel result-panel">
+              <div class="panel-head">
+                <h3>Output</h3>
+              </div>
+              <div id="assistantOutput" class="assistant-output">Your local assistant output will appear here.</div>
+            </section>
+          </div>
+        </section>
+      </main>
+    </div>
+
+    <!-- Mobile nav -->
+    <div class="mobile-tabs" aria-label="Mobile navigation">
+      <button class="tab active" data-view="dashboard">Home</button>
+      <button class="tab" data-view="patients">Patients</button>
+      <button class="tab" data-view="billing">Bills</button>
+      <button class="tab" data-view="schedule">Dates</button>
+      <button class="tab" data-view="assistant">AI</button>
+    </div>
+
+    <template id="emptyTemplate">
+      <div class="empty">No records yet.</div>
+    </template>
+
+    <!-- Patient photos modal -->
+    <div class="modal-overlay" id="photoModalOverlay">
+      <div class="modal" id="photoModal">
+        <div class="modal-head">
+          <div>
+            <h3>Photos</h3>
+            <p id="photoModalPatient">—</p>
+          </div>
+          <button class="icon-btn" id="closePhotoModal">Close</button>
+        </div>
+        <div class="modal-body">
+          <div class="qr-box">
+            <img id="photoQrImg" alt="Scan to upload photos" />
+            <p>Scan with a phone camera on the same Wi-Fi to upload photos straight to this patient's file. New scans stay linked to <strong id="photoModalPatient2">this patient</strong> only.</p>
+          </div>
+          <div class="photo-gallery-wrap">
+            <div class="panel-head" style="margin:0 0 10px;padding:0;border:none;">
+              <h3 style="font-size:13px;">Uploaded photos</h3>
+              <span class="pill" id="photoCountPill">0</span>
+            </div>
+            <div class="photo-grid" id="photoGrid"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- View-on-device modal -->
+    <div class="modal-overlay" id="deviceModalOverlay">
+      <div class="modal" id="deviceModal" style="width:min(420px,100%);">
+        <div class="modal-head">
+          <div>
+            <h3>View on another device</h3>
+            <p id="deviceModalPatient">—</p>
+          </div>
+          <button class="icon-btn" id="closeDeviceModal">Close</button>
+        </div>
+        <div class="qr-box" style="border:none;padding:0;">
+          <img id="deviceQrImg" alt="Scan to view this patient" />
+          <p>Scan with a tablet or phone on the same Wi-Fi to mirror this patient's record — vitals, visit history, and photos — read-only, updating live as you edit here.</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Duplicate patient warning modal -->
+    <div class="modal-overlay" id="dupModalOverlay">
+      <div class="modal" id="dupModal" style="width:min(520px,100%);">
+        <div class="modal-head">
+          <div>
+            <h3>This might already be a patient</h3>
+            <p>We found a close match before saving. Review or continue.</p>
+          </div>
+          <button class="icon-btn" id="closeDupModal">Close</button>
+        </div>
+        <div class="list" id="dupList" style="max-height:280px;"></div>
+        <div class="toolbar">
+          <button class="secondary" id="dupCancelBtn">Cancel</button>
+          <button id="dupSaveAnywayBtn">Save as new patient anyway</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Accept booking request modal -->
+    <div class="modal-overlay" id="bookingModalOverlay">
+      <div class="modal" id="bookingModal" style="width:min(520px,100%);">
+        <div class="modal-head">
+          <div>
+            <h3>Confirm booking</h3>
+            <p id="bookingModalSub">—</p>
+          </div>
+          <button class="icon-btn" id="closeBookingModal">Close</button>
+        </div>
+        <div class="form-grid" style="grid-template-columns:1fr;gap:12px;">
+          <label>Patient
+            <select id="bookingPatientSelect"></select>
+          </label>
+          <label>Appointment date &amp; time
+            <input type="datetime-local" id="bookingDateTime" required />
+          </label>
+          <label>Reason / notes
+            <textarea id="bookingNotes" rows="3"></textarea>
+          </label>
+        </div>
+        <div class="toolbar">
+          <button class="secondary" id="bookingDismissBtn">Dismiss request</button>
+          <button id="bookingConfirmBtn">Confirm &amp; add to schedule</button>
+        </div>
+      </div>
+    </div>
+
+    <script src="app.js"></script>
+  </body>
+</html>

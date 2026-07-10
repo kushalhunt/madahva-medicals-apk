@@ -1,0 +1,234 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0" />
+<title>Madhava Clinic — Upload Photos</title>
+<style>
+  :root{
+    --ink:#1a1a18; --ink-2:#3d3d38; --muted:#7a7a6e; --line:#e2dfd6;
+    --paper:#f7f5ef; --panel:#fdfcf8; --gold:#b8976a; --gold-pale:#ede4d3;
+    --green:#2d6648; --coral:#c0533c; --radius:12px;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0; min-height:100vh; background:var(--paper); color:var(--ink);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif;
+    padding:20px 16px 40px;
+  }
+  .brand{display:flex;align-items:center;gap:10px;margin-bottom:18px;}
+  .brand img{width:40px;height:40px;border-radius:8px;object-fit:cover;}
+  .brand h1{font-size:17px;margin:0;color:var(--ink);}
+  .brand p{margin:0;font-size:12px;color:var(--muted);}
+
+  .card{
+    background:var(--panel); border:1px solid var(--line); border-radius:var(--radius);
+    padding:18px; margin-bottom:14px; box-shadow:0 1px 4px rgba(26,26,24,0.06);
+  }
+  .patient-name{font-size:19px;font-weight:700;margin:0 0 2px;}
+  .patient-sub{font-size:13px;color:var(--muted);margin:0;}
+  .badge{
+    display:inline-block;margin-top:10px;font-size:12px;font-weight:600;
+    color:var(--green);background:#e4f0e8;padding:4px 10px;border-radius:999px;
+  }
+
+  .drop{
+    border:2px dashed var(--line); border-radius:var(--radius); padding:28px 16px;
+    text-align:center; color:var(--muted); background:var(--paper);
+  }
+  .drop strong{display:block;color:var(--ink);font-size:15px;margin-bottom:4px;}
+
+  .btn{
+    display:inline-flex; align-items:center; justify-content:center; gap:8px;
+    width:100%; padding:14px; border-radius:var(--radius); border:none;
+    font-size:15px; font-weight:600; cursor:pointer; margin-top:12px;
+    background:var(--ink); color:var(--gold-pale);
+  }
+  .btn.secondary{background:var(--panel);color:var(--ink-2);border:1px solid var(--line);}
+  .btn:disabled{opacity:0.5;}
+
+  input[type=file]{display:none;}
+
+  .thumbs{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:14px;}
+  .thumb{position:relative;border-radius:8px;overflow:hidden;aspect-ratio:1;background:#00000010;}
+  .thumb img{width:100%;height:100%;object-fit:cover;display:block;}
+  .thumb button{
+    position:absolute;top:4px;right:4px;background:rgba(26,26,24,0.7);color:#fff;
+    border:none;border-radius:999px;width:22px;height:22px;font-size:13px;line-height:1;cursor:pointer;
+  }
+
+  .status{font-size:13px;margin-top:10px;text-align:center;color:var(--muted);}
+  .status.error{color:var(--coral);}
+  .status.success{color:var(--green);}
+
+  .spinner{
+    width:16px;height:16px;border-radius:50%;border:2px solid rgba(237,228,211,0.4);
+    border-top-color:var(--gold-pale); animation:spin 0.7s linear infinite; display:inline-block;
+  }
+  @keyframes spin{to{transform:rotate(360deg);}}
+
+  .gallery-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;}
+  .gallery-head h3{margin:0;font-size:14px;}
+  .gallery-head span{font-size:12px;color:var(--muted);}
+  .gallery{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;}
+  .gallery img{width:100%;aspect-ratio:1;object-fit:cover;border-radius:8px;border:1px solid var(--line);}
+  .empty-gallery{font-size:12px;color:var(--muted);font-style:italic;padding:10px 0;}
+</style>
+</head>
+<body>
+
+  <div class="brand">
+    <img src="../logo.png" alt="Madhava Clinic" onerror="this.style.display='none'" />
+    <div>
+      <h1>Madhava Clinic</h1>
+      <p>Photo upload</p>
+    </div>
+  </div>
+
+  <div class="card" id="patientCard">
+    <p class="patient-sub">Loading patient…</p>
+  </div>
+
+  <div class="card" id="uploadCard" style="display:none;">
+    <label class="drop" id="dropLabel" for="fileInput">
+      <strong>Tap to take or choose photos</strong>
+      For this patient only — they will not mix with anyone else's records.
+    </label>
+    <input id="fileInput" type="file" accept="image/*" capture="environment" multiple />
+    <div class="thumbs" id="thumbs"></div>
+    <button class="btn" id="uploadBtn" disabled>Upload photos</button>
+    <button class="btn secondary" id="addMoreBtn" style="display:none;">Add more photos</button>
+    <div class="status" id="status"></div>
+  </div>
+
+  <div class="card" id="galleryCard" style="display:none;">
+    <div class="gallery-head">
+      <h3>Already uploaded</h3>
+      <span id="galleryCount"></span>
+    </div>
+    <div class="gallery" id="gallery"></div>
+  </div>
+
+<script>
+  const params = new URLSearchParams(location.search);
+  const patientId = params.get('patientId');
+  const API = `${location.protocol}//${location.host}/api`;
+
+  const patientCard = document.querySelector('#patientCard');
+  const uploadCard = document.querySelector('#uploadCard');
+  const galleryCard = document.querySelector('#galleryCard');
+  const gallery = document.querySelector('#gallery');
+  const galleryCount = document.querySelector('#galleryCount');
+  const fileInput = document.querySelector('#fileInput');
+  const thumbs = document.querySelector('#thumbs');
+  const uploadBtn = document.querySelector('#uploadBtn');
+  const addMoreBtn = document.querySelector('#addMoreBtn');
+  const dropLabel = document.querySelector('#dropLabel');
+  const statusEl = document.querySelector('#status');
+
+  let selectedFiles = [];
+  let patient = null;
+
+  async function init(){
+    if(!patientId){
+      patientCard.innerHTML = `<p class="patient-name">Invalid QR code</p><p class="patient-sub">No patient was linked to this code. Please rescan from the clinic screen.</p>`;
+      return;
+    }
+    try{
+      const res = await fetch(`${API}/patients/${encodeURIComponent(patientId)}/basic`);
+      if(!res.ok) throw new Error('not found');
+      patient = await res.json();
+      patientCard.innerHTML = `
+        <p class="patient-name">${escapeHtml(patient.name || 'Patient')}</p>
+        <p class="patient-sub">ID: ${escapeHtml(patient.patientCode || '—')}${patient.phone ? ' · ' + escapeHtml(patient.phone) : ''}</p>
+        <span class="badge">✓ Photos will be saved only to this patient</span>
+      `;
+      uploadCard.style.display = 'block';
+      galleryCard.style.display = 'block';
+      loadGallery();
+    }catch(e){
+      patientCard.innerHTML = `<p class="patient-name">Patient not found</p><p class="patient-sub">This QR code may be old or invalid. Ask clinic staff to reopen the Photos screen for a fresh code.</p>`;
+    }
+  }
+
+  fileInput.addEventListener('change', () => {
+    selectedFiles = Array.from(fileInput.files || []);
+    renderThumbs();
+  });
+
+  function renderThumbs(){
+    thumbs.innerHTML = '';
+    selectedFiles.forEach((file, i) => {
+      const url = URL.createObjectURL(file);
+      const div = document.createElement('div');
+      div.className = 'thumb';
+      div.innerHTML = `<img src="${url}" /><button type="button" data-i="${i}">✕</button>`;
+      thumbs.appendChild(div);
+    });
+    thumbs.querySelectorAll('button').forEach(b => b.addEventListener('click', () => {
+      selectedFiles.splice(Number(b.dataset.i), 1);
+      renderThumbs();
+    }));
+    uploadBtn.disabled = selectedFiles.length === 0;
+    dropLabel.querySelector('strong').textContent = selectedFiles.length
+      ? `${selectedFiles.length} photo${selectedFiles.length===1?'':'s'} selected`
+      : 'Tap to take or choose photos';
+  }
+
+  uploadBtn.addEventListener('click', async () => {
+    if(!selectedFiles.length || !patient) return;
+    uploadBtn.disabled = true;
+    uploadBtn.innerHTML = `<span class="spinner"></span> Uploading…`;
+    statusEl.className = 'status';
+    statusEl.textContent = '';
+
+    const form = new FormData();
+    form.append('patientId', patient.id);
+    selectedFiles.forEach(f => form.append('images', f));
+
+    try{
+      const res = await fetch(`${API}/photos`, { method: 'POST', body: form });
+      const data = await res.json();
+      if(!res.ok) throw new Error(data.error || 'Upload failed');
+      statusEl.className = 'status success';
+      statusEl.textContent = `✓ ${selectedFiles.length} photo${selectedFiles.length===1?'':'s'} uploaded for ${patient.name}.`;
+      selectedFiles = [];
+      fileInput.value = '';
+      thumbs.innerHTML = '';
+      uploadBtn.style.display = 'none';
+      addMoreBtn.style.display = 'block';
+      loadGallery();
+    }catch(e){
+      statusEl.className = 'status error';
+      statusEl.textContent = e.message || 'Upload failed. Check your connection and try again.';
+      uploadBtn.disabled = false;
+    }finally{
+      uploadBtn.innerHTML = 'Upload photos';
+    }
+  });
+
+  addMoreBtn.addEventListener('click', () => {
+    addMoreBtn.style.display = 'none';
+    uploadBtn.style.display = 'block';
+    uploadBtn.disabled = true;
+    statusEl.textContent = '';
+    fileInput.click();
+  });
+
+  async function loadGallery(){
+    try{
+      const res = await fetch(`${API}/photos?patientId=${encodeURIComponent(patient.id)}`);
+      const photos = await res.json();
+      galleryCount.textContent = `${photos.length} photo${photos.length===1?'':'s'}`;
+      gallery.innerHTML = photos.length
+        ? photos.map(p => `<img src="/photos/${encodeURIComponent(p.patientId)}/${encodeURIComponent(p.filename)}" />`).join('')
+        : `<div class="empty-gallery">No photos uploaded yet.</div>`;
+    }catch(e){ /* ignore */ }
+  }
+
+  function escapeHtml(v){ return String(v||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+  init();
+</script>
+</body>
+</html>
